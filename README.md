@@ -22,6 +22,7 @@ nccr_normaliztion/
 ├── model_utils.py         # LLM model setup and utilities
 ├── metrics.py             # Metrics computation functions
 ├── drug_normalizer.py     # Drug normalization and regimen mapping
+├── test_mapping.py        # Test script for regimen-drug mapping
 ├── requirements.txt       # Python dependencies
 ├── .gitignore            # Git ignore rules
 └── README.md             # This file
@@ -95,7 +96,7 @@ The pipeline generates several output columns:
 - `extracted_regimens`: Extracted treatment regimens
 - `normalized_drugs`: Normalized drug names
 - `combined_drugs`: Unique drugs from both extraction and regimen mapping
-- `mapped_regimen_drugs`: JSON mapping of regimens to constituent drugs
+- `regimen_drugs_only`: Drugs derived only from regimen mapping (flat list)
 - `precision/recall/f1`: Drug extraction metrics
 - `precision_regimen/recall_regimen/f1_regimen`: Regimen extraction metrics
 - `missing_drugs/hallucinated_drugs`: Drug extraction analysis
@@ -137,6 +138,14 @@ The regimen mapping uses sophisticated fuzzy matching with:
 - Automatic checkpoint creation
 - Backup management
 - Resume capability for interrupted runs
+
+## Testing
+
+Run the test script to verify regimen-drug mapping functionality:
+
+```bash
+python test_mapping.py
+```
 
 ## Contributing
 

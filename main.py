@@ -135,7 +135,7 @@ def run_pipeline():
                 # Normalize drugs and calculate normalized metrics
                 merged = normalize_drugs_in_df(merged, normalizer)
                 
-                # Calculate combined drugs
+                # Calculate combined drugs (all unique drugs from both extracted drugs and regimens)
                 merged['combined_drugs'] = merged.apply(
                     lambda row: regimen_mapper.get_combined_drugs(
                         row['extracted_drugs'],
@@ -144,15 +144,20 @@ def run_pipeline():
                     axis=1
                 )
                 
-                # Create mapped regimen drugs in JSON format
-                merged['mapped_regimen_drugs'] = merged.apply(
-                    lambda row: json.dumps({
-                        regimen: regimen_mapper.get_drugs_from_regimen(regimen)
-                        for regimen in row['extracted_regimens']
-                        if regimen
-                    }, indent=2),
+                # Create a flat list of drugs from regimen mappings only
+                merged['regimen_drugs_only'] = merged.apply(
+                    lambda row: regimen_mapper.get_mapped_regimen_drugs_flat(row['extracted_regimens']),
                     axis=1
                 )
+                
+                # Log some examples for debugging
+                logger.info("\nSample mapping results:")
+                for _, row in merged.head(2).iterrows():
+                    logger.info(f"Extracted drugs: {row['extracted_drugs']}")
+                    logger.info(f"Extracted regimens: {row['extracted_regimens']}")
+                    logger.info(f"Combined drugs: {row['combined_drugs']}")
+                    logger.info(f"Regimen drugs only: {row['regimen_drugs_only']}")
+                    logger.info("---")
             
             # Update and save incrementally
             df = pd.concat([df, merged], ignore_index=True)
@@ -198,7 +203,8 @@ if __name__ == "__main__":
         final_df = run_pipeline()
         print("\nPipeline completed successfully. Sample output:")
         if not final_df.empty:
-            print(final_df[["unique_key", "text_concat", "extracted_drugs", "normalized_drugs"]].head(2).to_string(index=False))
+            print(final_df[["unique_key", "text_concat", "extracted_drugs", "normalized_drugs", 
+                           "combined_drugs", "regimen_drugs_only"]].head(2).to_string(index=False))
     except Exception as e:
         logger.error(f"\nPipeline failed: {str(e)[:200]}")
         raise 

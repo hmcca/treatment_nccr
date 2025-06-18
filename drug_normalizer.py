@@ -1,7 +1,6 @@
 import pandas as pd
 from fuzzywuzzy import fuzz
 from typing import List, Dict, Set
-import json
 import logging
 
 # Set up logging
@@ -131,14 +130,24 @@ class RegimenDrugMapper:
         self.regimen_map = self._load_regimen_map(regimen_drug_file)
         logger.info(f"Loaded {len(self.regimen_map)} regimen mappings")
         
+        # Log some sample mappings for debugging
+        sample_regimens = list(self.regimen_map.keys())[:5]
+        logger.info(f"Sample regimens in mapping: {sample_regimens}")
+        
     def _load_regimen_map(self, regimen_drug_file: str) -> Dict[str, List[str]]:
         """Load regimen to drug mapping from file."""
         df = pd.read_csv(regimen_drug_file)
         regimen_map = {}
+        
         for _, row in df.iterrows():
             regimen = str(row['Regimen']).strip().lower()
             drugs = [d.strip().lower() for d in str(row['Drugs']).split(',')]
             regimen_map[regimen] = drugs
+            
+            # Log some sample mappings for debugging
+            if len(regimen_map) <= 3:
+                logger.info(f"Loaded regimen: '{regimen}' -> {len(drugs)} drugs")
+        
         return regimen_map
     
     def _normalize_regimen_name(self, regimen: str) -> str:
@@ -172,7 +181,7 @@ class RegimenDrugMapper:
         
         # First try exact match
         if normalized_regimen in self.regimen_map:
-            logger.debug(f"Exact match found for regimen: {regimen}")
+            logger.info(f"Exact match found for regimen: '{regimen}' -> '{normalized_regimen}'")
             return normalized_regimen
         
         # Try fuzzy matching
@@ -190,9 +199,9 @@ class RegimenDrugMapper:
                 best_match = known_regimen
         
         if best_match:
-            logger.debug(f"Matched '{regimen}' to '{best_match}' with score {best_score}")
+            logger.info(f"Fuzzy matched '{regimen}' to '{best_match}' with score {best_score}")
         else:
-            logger.debug(f"No good match found for '{regimen}' (best score: {best_score})")
+            logger.warning(f"No good match found for '{regimen}' (best score: {best_score})")
         
         return best_match
     
@@ -212,10 +221,10 @@ class RegimenDrugMapper:
         matched_regimen = self._fuzzy_match_regimen(regimen)
         if matched_regimen:
             drugs = self.regimen_map[matched_regimen]
-            logger.debug(f"Found {len(drugs)} drugs for regimen '{regimen}' -> '{matched_regimen}'")
+            logger.info(f"Found {len(drugs)} drugs for regimen '{regimen}' -> '{matched_regimen}': {drugs[:3]}...")
             return drugs
         else:
-            logger.debug(f"No drugs found for regimen: {regimen}")
+            logger.warning(f"No drugs found for regimen: '{regimen}'")
             return []
     
     def get_combined_drugs(self, extracted_drugs: List[str], extracted_regimens: List[str]) -> List[str]:
@@ -235,7 +244,7 @@ class RegimenDrugMapper:
             if regimen:
                 drugs = self.get_drugs_from_regimen(regimen)
                 regimen_drugs.extend(drugs)
-                logger.debug(f"Regimen '{regimen}' mapped to drugs: {drugs}")
+                logger.info(f"Regimen '{regimen}' mapped to {len(drugs)} drugs")
         
         # Combine with extracted drugs and get unique set
         all_drugs = set()
@@ -243,7 +252,28 @@ class RegimenDrugMapper:
             if drug:
                 all_drugs.add(str(drug).strip().lower())
         
-        logger.debug(f"Combined {len(extracted_drugs)} extracted drugs with {len(regimen_drugs)} regimen drugs")
-        logger.debug(f"Total unique drugs: {len(all_drugs)}")
+        logger.info(f"Combined {len(extracted_drugs)} extracted drugs with {len(regimen_drugs)} regimen drugs")
+        logger.info(f"Total unique drugs: {len(all_drugs)}")
         
-        return list(all_drugs) 
+        return list(all_drugs)
+    
+    def get_mapped_regimen_drugs_flat(self, extracted_regimens: List[str]) -> List[str]:
+        """
+        Get a flat list of all drugs from regimen mappings.
+        
+        Args:
+            extracted_regimens: List of extracted regimens
+            
+        Returns:
+            List of all drugs from regimen mappings
+        """
+        all_regimen_drugs = []
+        
+        for regimen in extracted_regimens:
+            if regimen:
+                drugs = self.get_drugs_from_regimen(regimen)
+                all_regimen_drugs.extend(drugs)
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        return [x for x in all_regimen_drugs if not (x in seen or seen.add(x))] 
